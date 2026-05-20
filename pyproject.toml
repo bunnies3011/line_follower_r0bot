@@ -1,0 +1,14 @@
+[project]
+name = "line-follower-car"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.14"
+dependencies = []
+
+[dependency-groups]
+dev = [
+    "esptool>=5.2.0",
+    "mpremote>=1.28.0",
+    "ruff>=0.15.13",
+]
