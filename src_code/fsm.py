@@ -147,37 +147,37 @@ class LineFollowerFSM:
         elif self.state == STATE_LOST_LINE:
             # State 12: Phân loại mất line → rẽ theo hướng nhớ
             if self.remember_line == 1:
-                self._motor.speed_run(self.speed, SPEED_REVERSE)
+                self._motor.speed_run(SPEED_REVERSE, self.speed)
                 self._change_state(STATE_TURN_RIGHT_1)
             elif self.remember_line == -1:
-                self._motor.speed_run(SPEED_REVERSE, self.speed)
+                self._motor.speed_run(self.speed, SPEED_REVERSE)
                 self._change_state(STATE_TURN_LEFT_1)
             else:
                 self._change_state(STATE_FOLLOW)
 
         elif self.state == STATE_TURN_RIGHT_1:
             # State 21: Quay phải bước 1 – chờ thấy cạnh phải
-            self._motor.speed_run(self.speed, SPEED_REVERSE)
+            self._motor.speed_run(SPEED_REVERSE, self.speed)
             if self._mask(MASK_RIGHT_EDGE):
-                self._motor.speed_run(self.speed, self.speed // 2)
+                self._motor.speed_run(self.speed // 2, self.speed)
                 self._change_state(STATE_TURN_RIGHT_2)
 
         elif self.state == STATE_TURN_RIGHT_2:
             # State 22: Quay phải bước 2 – chờ line về giữa
-            self._motor.speed_run(self.speed, self.speed // 2)
+            self._motor.speed_run(self.speed // 2, self.speed)
             if self._mask(MASK_CENTER):
                 self._change_state(STATE_FOLLOW)
 
         elif self.state == STATE_TURN_LEFT_1:
             # State 31: Quay trái bước 1 – chờ thấy cạnh trái
-            self._motor.speed_run(SPEED_REVERSE, self.speed)
+            self._motor.speed_run(self.speed, SPEED_REVERSE)
             if self._mask(MASK_LEFT_EDGE):
-                self._motor.speed_run(self.speed // 2, self.speed)
+                self._motor.speed_run(self.speed, self.speed // 2)
                 self._change_state(STATE_TURN_LEFT_2)
 
         elif self.state == STATE_TURN_LEFT_2:
             # State 32: Quay trái bước 2 – chờ line về giữa
-            self._motor.speed_run(self.speed // 2, self.speed)
+            self._motor.speed_run(self.speed, self.speed // 2)
             if self._mask(MASK_CENTER):
                 self._change_state(STATE_FOLLOW)
 
@@ -196,14 +196,14 @@ class LineFollowerFSM:
         Có thể mở rộng cho nhiều ngã tư hơn.
         """
         if self.cross_count == 1:
-            # Rẽ phải: motor phải chậm
-            self._motor.speed_run(self.speed, self.speed // 6)
+            # Rẽ phải: motor trái nhanh hơn motor phải
+            self._motor.speed_run(self.speed // 6, self.speed)
             if self._mask(MASK_CENTER):
                 self._change_state(STATE_FOLLOW)
 
         elif self.cross_count == 2:
-            # Rẽ trái: motor trái chậm
-            self._motor.speed_run(self.speed // 6, self.speed)
+            # Rẽ trái: motor phải nhanh hơn motor trái
+            self._motor.speed_run(self.speed, self.speed // 6)
             if self._mask(MASK_CENTER):
                 self._change_state(STATE_FOLLOW)
 
@@ -257,6 +257,20 @@ class LineFollowerFSM:
             int: Kết quả AND giữa sensor bitmask và mask.
         """
         return self._bitmask & mask
+
+    def reset(self):
+        """Reset FSM để bắt đầu lại từ state khởi động."""
+        self.state = STATE_STARTUP
+        self.cross_count = 0
+        self.remember_line = 0
+        self._state_start_ms = time.ticks_ms()
+        self._remember_ms = self._state_start_ms
+        self._bitmask = 0
+        self._raw = [0] * 8
+        self._normalized = [0] * 8
+        self._servo_pwm = 0
+        self._controller.reset()
+        self._motor.stop()
 
     def _change_state(self, new_state):
         """Chuyển state và reset timer."""

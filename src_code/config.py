@@ -28,7 +28,7 @@ PWM_MAX_DUTY = 1023 # ESP32 MicroPython duty range: 0–1023
 NUM_SENSORS = 8
 
 SENSOR_PINS = [
-    26,  # Sensor 8 – D26 – ngoài cùng phải → bit 7
+    26,  # Sensor 8 – D26 – ngoài cùng trái → bit 7
     25,  # Sensor 7 – D25                    → bit 6
     33,  # Sensor 6 – D33                    → bit 5
     32,  # Sensor 5 – D32                    → bit 4

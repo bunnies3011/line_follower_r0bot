@@ -130,8 +130,7 @@ def main():
                 wait_button_release(button)
 
                 print("[MAIN] Tiếp tục chạy...")
-                controller.reset()
-                fsm.state = 10  # STATE_STARTUP
+                fsm.reset()
                 time.sleep_ms(500)
 
             time.sleep_ms(LOOP_DELAY_MS)
