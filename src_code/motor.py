@@ -71,18 +71,18 @@ class MotorDriver:
     def _drive_left(self, speed):
         """Điều khiển Motor A (trái).
 
-        Logic chiều quay giống code Arduino:
-          speed > 0: AIN1=HIGH, AIN2=LOW,  PWM=speed
-          speed < 0: AIN1=LOW,  AIN2=HIGH, PWM=255+speed
+        Logic chiều quay theo wiring thực tế:
+          speed > 0: AIN1=LOW,  AIN2=HIGH, PWM=speed
+          speed < 0: AIN1=HIGH, AIN2=LOW,  PWM=255+speed
           speed = 0: PWM=0
         """
         if speed > 0:
-            self._ain1.value(1)
-            self._ain2.value(0)
-            self._pwma.duty(self._scale(speed))
-        elif speed < 0:
             self._ain1.value(0)
             self._ain2.value(1)
+            self._pwma.duty(self._scale(speed))
+        elif speed < 0:
+            self._ain1.value(1)
+            self._ain2.value(0)
             self._pwma.duty(self._scale(SPEED_SCALE + speed))
         else:
             self._pwma.duty(0)
@@ -90,7 +90,7 @@ class MotorDriver:
     def _drive_right(self, speed):
         """Điều khiển Motor B (phải).
 
-        Logic chiều quay giống code Arduino:
+        Logic chiều quay theo wiring thực tế:
           speed > 0: BIN1=LOW,  BIN2=HIGH, PWM=speed
           speed < 0: BIN1=HIGH, BIN2=LOW,  PWM=255+speed
           speed = 0: PWM=0

@@ -36,8 +36,8 @@ class PDController:
 
         Returns:
             int: Giá trị hiệu chỉnh tốc độ (servo_pwm).
-                 Âm = line lệch trái → cần rẽ trái.
-                 Dương = line lệch phải → cần rẽ phải.
+                 Âm = line lệch trái.
+                 Dương = line lệch phải.
         """
         avg = 0
         total = 0

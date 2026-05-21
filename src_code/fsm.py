@@ -6,7 +6,7 @@ chuyển sang dùng time.ticks_ms() thay vì biến cnt trong ISR.
 
 States:
   10 – Khởi động (chạy thẳng chậm)
-  11 – Chạy dò line (PD control)
+  11 – Chạy dò line (PD control); chưa thấy line thì chạy thẳng tìm line
   12 – Phân loại mất line
   21/22 – Rẽ phải 2 bước
   31/32 – Rẽ trái 2 bước
@@ -66,7 +66,6 @@ class LineFollowerFSM:
         self.speed = SPEED_DEFAULT
         self.cross_count = 0
         self.remember_line = 0
-
         self._state_start_ms = time.ticks_ms()
         self._remember_ms = time.ticks_ms()
 
@@ -133,12 +132,9 @@ class LineFollowerFSM:
             if time.ticks_diff(now, self._remember_ms) > REMEMBER_TIMEOUT:
                 self.remember_line = 0
 
-            # Mất line
+            # Mất line: tiếp tục chạy thẳng cho tới khi bắt lại line.
             if self._bitmask == 0x00:
-                if self.remember_line != 0:
-                    self._change_state(STATE_LOST_LINE)
-                else:
-                    self._motor.stop()
+                self._drive_straight(self.speed)
                 return
 
             # Chạy bình thường với PD control
@@ -216,30 +212,36 @@ class LineFollowerFSM:
 
         Thay thế hàm runforwardline() với switch(sensor) 25+ cases
         trong code Arduino. Dùng servo_pwm trực tiếp từ PD controller.
+        Nếu chưa thấy line nào, xe vẫn chạy thẳng để tìm line.
 
         Args:
             speed: Tốc độ cơ bản (0–255).
         """
         if self._bitmask == 0x00:
-            # Mất line hoàn toàn → dừng
-            self._motor.stop()
+            self._drive_straight(speed)
             return
 
         angle = self._servo_pwm
         self._handle_and_speed(angle, speed)
+
+    def _drive_straight(self, speed):
+        """Chạy thẳng khi chưa thấy line, chờ sensor bắt lại line."""
+        speed = max(0, min(SPEED_SCALE, speed))
+        self._motor.speed_run(speed, speed)
 
     def _handle_and_speed(self, angle, speed):
         """Chia tốc độ 2 bánh dựa trên góc hiệu chỉnh.
 
         Fix lỗi clamp trong code Arduino gốc:
         Dùng constrain cho từng bánh thay vì sửa speed chung.
+        Chiều bù tốc độ theo wiring thực tế của xe.
 
         Args:
             angle: Giá trị hiệu chỉnh từ PD controller.
             speed: Tốc độ cơ bản.
         """
-        speed_left = speed + angle
-        speed_right = speed - angle
+        speed_left = speed - angle
+        speed_right = speed + angle
 
         # Constrain (fix: code gốc có logic clamp sai)
         speed_left = max(-SPEED_SCALE, min(SPEED_SCALE, speed_left))

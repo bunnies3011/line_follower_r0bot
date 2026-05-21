@@ -4,8 +4,8 @@ main.py – Entry point cho xe dò line ESP32 MicroPython.
 Quy trình:
   1. Khởi tạo modules
   2. Thử đọc calibration cũ từ flash
-  3. Nếu chưa có calibration: quét sensor qua line đen/trắng, nhấn nút để lưu
-  4. Chờ nút start
+  3. Có calibration thì dùng calibration đã lưu; chưa có thì dùng ngưỡng mặc định
+  4. Tự chạy sau khi cấp nguồn, không chờ nút start
   5. Vòng lặp chính: đọc sensor → PD → FSM → motor
 """
 
@@ -26,13 +26,6 @@ def wait_button_release(button):
     while button.value() == 0:
         time.sleep_ms(10)
     time.sleep_ms(50)
-
-
-def wait_button_press(button):
-    """Chờ nút được nhấn rồi nhả ra."""
-    while button.value() == 1:
-        time.sleep_ms(10)
-    wait_button_release(button)
 
 
 def main():
@@ -57,46 +50,12 @@ def main():
         print("[MAIN] Calibration cũ đã tải.")
         calibration.print_values()
     else:
-        print("[MAIN] Không có calibration cũ.")
+        print("[MAIN] Không có calibration cũ. Dùng ngưỡng mặc định.")
 
     motor.stop()
 
-    if has_saved_calib:
-        print()
-        print("[MAIN] Nhấn nút (D23) để bắt đầu chạy với calibration đã lưu.")
-        wait_button_press(button)
-    else:
-        # ==================== CALIBRATION LOOP ====================
-        print()
-        print("[MAIN] === CHẾ ĐỘ HIỆU CHUẨN ===")
-        print("[MAIN] Quét cảm biến qua line đen và nền trắng.")
-        print("[MAIN] Nhấn nút (D23) để lưu calibration và bắt đầu chạy.")
-        print()
-
-        sample_count = 0
-
-        while button.value() == 1:  # Chờ nút được nhấn (LOW = nhấn)
-            raw = sensor.read_raw()
-            calibration.update(raw)
-            sample_count += 1
-
-            # In giá trị debug mỗi 50 lần đọc (~250ms)
-            if sample_count % 50 == 0:
-                bitmask = sensor.read_bitmask(raw, calibration.compare_value)
-                print(
-                    "[CALIB] Raw:",
-                    raw,
-                    " Mask: {:08b}".format(bitmask),
-                )
-
-            time.sleep_ms(LOOP_DELAY_MS)
-
-        wait_button_release(button)
-
-        # Lưu calibration
-        calibration.finalize()
-        calibration.save()
-        calibration.print_values()
+    print()
+    print("[MAIN] Tự chạy sau khi cấp nguồn.")
 
     print()
     print("[MAIN] === BẮT ĐẦU CHẠY ===")

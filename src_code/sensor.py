@@ -96,6 +96,7 @@ class SensorArray:
             if rng > 0:
                 normalized[i] = (val - bk) * 1000 // rng
             else:
-                normalized[i] = 0
+                # Chưa có calibration hợp lệ: dùng giá trị raw đã đảo trực tiếp.
+                normalized[i] = raw_values[i] * 1000 // ADC_MAX
 
         return normalized
