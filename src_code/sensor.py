@@ -19,7 +19,7 @@ from config import (
 class SensorArray:
     """Đọc 8 cảm biến IR analog, tạo bitmask và giá trị chuẩn hóa.
 
-    Thứ tự: sensor 8 (phải, bit 7) đọc trước, sensor 1 (trái, bit 0) đọc sau.
+    Thứ tự: sensor 8 (trái, bit 7) đọc trước, sensor 1 (phải, bit 0) đọc sau.
     Giống logic read_sensor() trong Arduino: temp = temp << 1 rồi OR bit.
     """
 
@@ -35,8 +35,8 @@ class SensorArray:
         """Đọc 8 giá trị ADC thô (đảo giá trị: line đen → giá trị cao).
 
         Returns:
-            list[int]: 8 giá trị đã đảo, index 0 = sensor 8 (phải),
-                       index 7 = sensor 1 (trái).
+            list[int]: 8 giá trị đã đảo, index 0 = sensor 8 (trái),
+                       index 7 = sensor 1 (phải).
         """
         values = [0] * NUM_SENSORS
         for i in range(NUM_SENSORS):

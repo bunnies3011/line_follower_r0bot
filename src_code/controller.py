@@ -32,12 +32,12 @@ class PDController:
 
         Args:
             normalized_values: list[int] – 8 giá trị chuẩn hóa.
-                Index 0 = sensor 8 (phải), index 7 = sensor 1 (trái).
+                Index 0 = sensor 8 (trái), index 7 = sensor 1 (phải).
 
         Returns:
             int: Giá trị hiệu chỉnh tốc độ (servo_pwm).
-                 Âm = line lệch phải → cần rẽ phải.
-                 Dương = line lệch trái → cần rẽ trái.
+                 Âm = line lệch trái → cần rẽ trái.
+                 Dương = line lệch phải → cần rẽ phải.
         """
         avg = 0
         total = 0

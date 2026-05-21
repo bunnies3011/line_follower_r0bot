@@ -238,8 +238,8 @@ class LineFollowerFSM:
             angle: Giá trị hiệu chỉnh từ PD controller.
             speed: Tốc độ cơ bản.
         """
-        speed_left = speed - angle
-        speed_right = speed + angle
+        speed_left = speed + angle
+        speed_right = speed - angle
 
         # Constrain (fix: code gốc có logic clamp sai)
         speed_left = max(-SPEED_SCALE, min(SPEED_SCALE, speed_left))

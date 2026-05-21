@@ -28,7 +28,7 @@ Mảng cảm biến dò line 8 kênh được kết nối với ESP32 để đ�
 
 | ESP32 Pin | Sensor Pin | Mô tả                |
 |-----------|------------|-----------------------|
-| D26       | 8          | Kênh cảm biến 8 (ngoài cùng phải) |
+| D26       | 8          | Kênh cảm biến 8 (ngoài cùng trái) |
 | D25       | 7          | Kênh cảm biến 7      |
 | D33       | 6          | Kênh cảm biến 6      |
 | D32       | 5          | Kênh cảm biến 5      |
@@ -36,7 +36,7 @@ Mảng cảm biến dò line 8 kênh được kết nối với ESP32 để đ�
 | D35       | 4          | Kênh cảm biến 4      |
 | D34       | 3          | Kênh cảm biến 3      |
 | VN        | 2          | Kênh cảm biến 2      |
-| VP        | 1          | Kênh cảm biến 1 (ngoài cùng trái) |
+| VP        | 1          | Kênh cảm biến 1 (ngoài cùng phải) |
 
 ---
 

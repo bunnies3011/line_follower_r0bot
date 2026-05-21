@@ -23,7 +23,7 @@ PWM_FREQ = 1000     # Hz – tần số PWM cho motor
 PWM_MAX_DUTY = 1023 # ESP32 MicroPython duty range: 0–1023
 
 # ======================== SENSOR ARRAY (8 kênh) ========================
-# Thứ tự đọc: sensor 8 (phải) → sensor 1 (trái)
+# Thứ tự đọc: sensor 8 (trái) → sensor 1 (phải)
 # Sau shift: sensor 8 → bit 7 (MSB), sensor 1 → bit 0 (LSB)
 NUM_SENSORS = 8
 
@@ -35,7 +35,7 @@ SENSOR_PINS = [
     35,  # Sensor 4 – D35 (input only)       → bit 3
     34,  # Sensor 3 – D34 (input only)       → bit 2
     39,  # Sensor 2 – VN/GPIO39 (input only) → bit 1
-    36,  # Sensor 1 – VP/GPIO36 (input only) → bit 0
+    36,  # Sensor 1 – VP/GPIO36 (input only) – ngoài cùng phải → bit 0
 ]
 
 ADC_MAX = 4095   # ESP32 ADC 12-bit
@@ -65,8 +65,8 @@ REMEMBER_TIMEOUT = 1000 # ms – timeout xóa RememberLine
 # ======================== SENSOR MASKS ========================
 MASK_INTERSECTION = 0x81    # Bit 7 + bit 0 → ngã tư
 MASK_CENTER = 0x18          # Bit 4 + bit 3 → line ở giữa
-MASK_LEFT_EDGE = 0x01      # Bit 0 → line ở cạnh trái (sensor 1)
-MASK_RIGHT_EDGE = 0x80       # Bit 7 → line ở cạnh phải (sensor 8)
+MASK_LEFT_EDGE = 0x80        # Bit 7 → line ở cạnh trái (sensor 8)
+MASK_RIGHT_EDGE = 0x01       # Bit 0 → line ở cạnh phải (sensor 1)
 
 # ======================== CALIBRATION ========================
 CALIB_FILE = "/calibration.json"
