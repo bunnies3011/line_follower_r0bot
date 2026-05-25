@@ -45,9 +45,9 @@ ADC_ATTEN = 3    # ADC.ATTN_11DB = 3 → full range 0–3.3V
 PIN_BUTTON = 23  # D23 – nút Start
 
 # ======================== PD CONTROLLER ========================
-KP = 1
-KD = 12
-PD_DIVIDER = 30     # servoPwm = iRet / PD_DIVIDER
+KP = 3
+KD = 25
+PD_DIVIDER = 15     # servoPwm = iRet / PD_DIVIDER
 PD_CLAMP = 4000     # constrain iRet trong [-PD_CLAMP, PD_CLAMP]
 PD_CENTER = 3500    # weighted average center: (NUM_SENSORS/2 - 0.5) * 1000
 
