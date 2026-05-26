@@ -45,8 +45,8 @@ ADC_ATTEN = 3    # ADC.ATTN_11DB = 3 → full range 0–3.3V
 PIN_BUTTON = 23  # D23 – nút Start
 
 # ======================== PD CONTROLLER ========================
-KP = 1
-KD = 12
+KP = 2
+KD = 18
 PD_DIVIDER = 30     # servoPwm = iRet / PD_DIVIDER
 PD_CLAMP = 4000     # constrain iRet trong [-PD_CLAMP, PD_CLAMP]
 PD_CENTER = 3500    # weighted average center: (NUM_SENSORS/2 - 0.5) * 1000
@@ -58,9 +58,29 @@ SPEED_REVERSE = -40     # Tốc độ quay ngược khi rẽ
 SPEED_SCALE = 255       # Arduino speed range max
 
 # ======================== TIMING ========================
-LOOP_DELAY_MS = 5       # ~200 Hz main loop
+LOOP_DELAY_MS = 3       # ~333 Hz main loop (giảm từ 5ms để phản ứng nhanh hơn)
 STARTUP_TICKS = 500     # ms – thời gian state 10 trước khi chuyển state 11
 REMEMBER_TIMEOUT = 1000 # ms – timeout xóa RememberLine
+
+# ======================== SMOOTHING & FILTERING ========================
+# Motor ramping (acceleration limiting)
+MOTOR_RAMP_RATE = 25    # Tốc độ thay đổi tối đa mỗi vòng (0-255 scale)
+                        # Giá trị nhỏ = êm hơn nhưng chậm phản ứng
+                        # Giá trị lớn = phản ứng nhanh nhưng giật hơn
+
+# Sensor filtering (low-pass filter)
+SENSOR_FILTER_ALPHA = 0.4  # 0.0 = không filter, 1.0 = không smoothing
+                           # 0.3-0.5 = cân bằng tốt giữa nhiễu và phản ứng
+
+# Steering smoothing
+STEERING_SMOOTH_ALPHA = 0.6  # Alpha cho steering smoothing
+                             # 0.5-0.7 = cân bằng tốt
+STEERING_SMOOTH_ADAPTIVE = True  # Tăng alpha khi error lớn
+
+# Adaptive speed control
+ADAPTIVE_SPEED_ENABLED = True    # Bật/tắt adaptive speed
+ADAPTIVE_SPEED_MIN_FACTOR = 0.6  # Giảm tốc độ tối đa xuống 60% khi quay gắt
+ADAPTIVE_SPEED_CURVE_THRESHOLD = 50  # Ngưỡng servo_pwm để bắt đầu giảm tốc
 
 # ======================== SENSOR MASKS ========================
 MASK_INTERSECTION = 0x81    # Bit 7 + bit 0 → ngã tư

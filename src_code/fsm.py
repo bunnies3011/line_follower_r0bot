@@ -17,6 +17,9 @@ States:
 import time
 
 from config import (
+    ADAPTIVE_SPEED_CURVE_THRESHOLD,
+    ADAPTIVE_SPEED_ENABLED,
+    ADAPTIVE_SPEED_MIN_FACTOR,
     MASK_CENTER,
     MASK_INTERSECTION,
     MASK_LEFT_EDGE,
@@ -208,7 +211,7 @@ class LineFollowerFSM:
             self._change_state(STATE_FOLLOW)
 
     def _follow_line(self, speed):
-        """Chạy dò line dùng PD controller.
+        """Chạy dò line dùng PD controller với adaptive speed.
 
         Thay thế hàm runforwardline() với switch(sensor) 25+ cases
         trong code Arduino. Dùng servo_pwm trực tiếp từ PD controller.
@@ -222,7 +225,11 @@ class LineFollowerFSM:
             return
 
         angle = self._servo_pwm
-        self._handle_and_speed(angle, speed)
+        
+        # Adaptive speed: giảm tốc độ khi quay góc gắt
+        adjusted_speed = self._calculate_adaptive_speed(speed, abs(angle))
+        
+        self._handle_and_speed(angle, adjusted_speed)
 
     def _drive_straight(self, speed):
         """Chạy thẳng khi chưa thấy line, chờ sensor bắt lại line."""
@@ -248,6 +255,38 @@ class LineFollowerFSM:
         speed_right = max(-SPEED_SCALE, min(SPEED_SCALE, speed_right))
 
         self._motor.speed_run(speed_right, speed_left)
+
+    def _calculate_adaptive_speed(self, base_speed, angle_magnitude):
+        """Tính tốc độ điều chỉnh dựa trên độ cong đường.
+        
+        Khi góc lái lớn (đường cong gắt), giảm tốc độ để xe ổn định hơn.
+        Khi đường thẳng, giữ tốc độ tối đa.
+        
+        Args:
+            base_speed: Tốc độ cơ bản (0-255)
+            angle_magnitude: Độ lớn góc lái (abs(servo_pwm))
+            
+        Returns:
+            int: Tốc độ đã điều chỉnh
+        """
+        if not ADAPTIVE_SPEED_ENABLED:
+            return base_speed
+        
+        # Nếu góc nhỏ hơn ngưỡng → giữ nguyên tốc độ
+        if angle_magnitude < ADAPTIVE_SPEED_CURVE_THRESHOLD:
+            return base_speed
+        
+        # Tính hệ số giảm tốc dựa trên góc
+        # Góc càng lớn → giảm tốc càng nhiều
+        # Giới hạn giảm tối đa xuống ADAPTIVE_SPEED_MIN_FACTOR
+        curve_factor = (angle_magnitude - ADAPTIVE_SPEED_CURVE_THRESHOLD) / 100.0
+        curve_factor = min(curve_factor, 1.0 - ADAPTIVE_SPEED_MIN_FACTOR)
+        
+        adjusted_speed = int(base_speed * (1.0 - curve_factor))
+        
+        # Đảm bảo tốc độ không thấp hơn min_factor
+        min_speed = int(base_speed * ADAPTIVE_SPEED_MIN_FACTOR)
+        return max(adjusted_speed, min_speed)
 
     def _mask(self, mask):
         """Kiểm tra bitmask sensor (giống sensorMask() Arduino).

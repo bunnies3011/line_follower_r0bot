@@ -12,6 +12,7 @@ from config import (
     ADC_ATTEN,
     ADC_MAX,
     NUM_SENSORS,
+    SENSOR_FILTER_ALPHA,
     SENSOR_PINS,
 )
 
@@ -30,17 +31,37 @@ class SensorArray:
             adc = ADC(Pin(pin_num))
             adc.atten(ADC_ATTEN)  # ATTN_11DB → full range 0–3.3V
             self._adcs.append(adc)
+        
+        # Low-pass filter – lưu giá trị đã lọc
+        self._filtered_values = [0] * NUM_SENSORS
 
     def read_raw(self):
-        """Đọc 8 giá trị ADC thô (đảo giá trị: line đen → giá trị cao).
+        """Đọc 8 giá trị ADC thô với low-pass filter (đảo giá trị: line đen → giá trị cao).
+        
+        Áp dụng exponential moving average để giảm nhiễu:
+        filtered = alpha * new_value + (1 - alpha) * old_value
 
         Returns:
-            list[int]: 8 giá trị đã đảo, index 0 = sensor 8 (trái),
+            list[int]: 8 giá trị đã đảo và lọc, index 0 = sensor 8 (trái),
                        index 7 = sensor 1 (phải).
         """
         values = [0] * NUM_SENSORS
         for i in range(NUM_SENSORS):
-            values[i] = ADC_MAX - self._adcs[i].read()
+            # Đọc giá trị mới và đảo
+            new_value = ADC_MAX - self._adcs[i].read()
+            
+            # Áp dụng low-pass filter (exponential moving average)
+            if self._filtered_values[i] == 0:
+                # Lần đầu tiên: khởi tạo với giá trị hiện tại
+                self._filtered_values[i] = new_value
+            else:
+                # Exponential smoothing
+                self._filtered_values[i] = int(
+                    SENSOR_FILTER_ALPHA * new_value + 
+                    (1 - SENSOR_FILTER_ALPHA) * self._filtered_values[i]
+                )
+            
+            values[i] = self._filtered_values[i]
         return values
 
     def read_bitmask(self, raw_values, compare_values):

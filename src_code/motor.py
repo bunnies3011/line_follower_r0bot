@@ -10,6 +10,7 @@ Mapping từ diagram.jpeg:
 from machine import Pin, PWM
 
 from config import (
+    MOTOR_RAMP_RATE,
     PIN_AIN1,
     PIN_AIN2,
     PIN_BIN1,
@@ -46,15 +47,29 @@ class MotorDriver:
         self._pwmb.freq(PWM_FREQ)
         self._pwmb.duty(0)
 
+        # Motor ramping – lưu tốc độ hiện tại để tăng/giảm dần
+        self._current_speed_left = 0
+        self._current_speed_right = 0
+
     def speed_run(self, right, left):
-        """Điều khiển tốc độ và chiều quay 2 motor.
+        """Điều khiển tốc độ và chiều quay 2 motor với ramping.
 
         Tham số giống code Arduino gốc:
           right: tốc độ motor phải (−255 đến +255)
           left:  tốc độ motor trái (−255 đến +255)
 
         Giá trị dương = tiến, âm = lùi, 0 = dừng.
+        
+        Ramping: Tốc độ thay đổi dần để giảm giật, cải thiện độ êm.
         """
+        # Áp dụng ramping cho motor trái
+        left = self._apply_ramp(left, self._current_speed_left)
+        self._current_speed_left = left
+        
+        # Áp dụng ramping cho motor phải
+        right = self._apply_ramp(right, self._current_speed_right)
+        self._current_speed_right = right
+        
         self._drive_left(left)
         self._drive_right(right)
 
@@ -105,6 +120,27 @@ class MotorDriver:
             self._pwmb.duty(self._scale(SPEED_SCALE + speed))
         else:
             self._pwmb.duty(0)
+
+    @staticmethod
+    def _apply_ramp(target_speed, current_speed):
+        """Áp dụng ramping để tốc độ thay đổi dần.
+        
+        Args:
+            target_speed: Tốc độ mục tiêu (-255 đến +255)
+            current_speed: Tốc độ hiện tại (-255 đến +255)
+            
+        Returns:
+            int: Tốc độ mới sau khi áp dụng ramping
+        """
+        diff = target_speed - current_speed
+        
+        # Giới hạn thay đổi tốc độ
+        if diff > MOTOR_RAMP_RATE:
+            return current_speed + MOTOR_RAMP_RATE
+        elif diff < -MOTOR_RAMP_RATE:
+            return current_speed - MOTOR_RAMP_RATE
+        else:
+            return target_speed
 
     @staticmethod
     def _scale(value):
