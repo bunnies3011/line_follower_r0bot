@@ -24,6 +24,10 @@ from config import (
     MASK_INTERSECTION,
     MASK_LEFT_EDGE,
     MASK_RIGHT_EDGE,
+    MASK_SHARP_LEFT,
+    MASK_SHARP_LEFT_MIN,
+    MASK_SHARP_RIGHT,
+    MASK_SHARP_RIGHT_MIN,
     REMEMBER_TIMEOUT,
     SPEED_DEFAULT,
     SPEED_REVERSE,
@@ -215,15 +219,35 @@ class LineFollowerFSM:
 
         Thay thế hàm runforwardline() với switch(sensor) 25+ cases
         trong code Arduino. Dùng servo_pwm trực tiếp từ PD controller.
-        Nếu chưa thấy line nào, xe vẫn chạy thẳng để tìm line.
+        
+        PATTERN DETECTION: Phát hiện góc vuông bằng sensor pattern
+        và tank turn tức thì (ưu tiên cao nhất).
 
         Args:
             speed: Tốc độ cơ bản (0–255).
         """
+        # PRIORITY 1: Phát hiện góc vuông TRÁI (11110000 hoặc 11100000)
+        # 4 sensor trái sáng → tank turn trái (bánh trái lùi)
+        if (self._bitmask & MASK_SHARP_LEFT) == MASK_SHARP_LEFT or \
+           (self._bitmask & MASK_SHARP_LEFT_MIN) == MASK_SHARP_LEFT_MIN:
+            # Tank turn trái: bánh phải tiến, bánh trái lùi
+            self._motor.speed_run(speed, -speed // 2)
+            return
+        
+        # PRIORITY 2: Phát hiện góc vuông PHẢI (00001111 hoặc 00000111)
+        # 4 sensor phải sáng → tank turn phải (bánh phải lùi)
+        if (self._bitmask & MASK_SHARP_RIGHT) == MASK_SHARP_RIGHT or \
+           (self._bitmask & MASK_SHARP_RIGHT_MIN) == MASK_SHARP_RIGHT_MIN:
+            # Tank turn phải: bánh trái tiến, bánh phải lùi
+            self._motor.speed_run(-speed // 2, speed)
+            return
+        
+        # PRIORITY 3: Mất line → chạy thẳng tìm line
         if self._bitmask == 0x00:
             self._drive_straight(speed)
             return
 
+        # PRIORITY 4: Chạy PD bình thường
         angle = self._servo_pwm
         
         # Adaptive speed: giảm tốc độ khi quay góc gắt

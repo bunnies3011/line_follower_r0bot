@@ -88,6 +88,12 @@ MASK_CENTER = 0x18          # Bit 4 + bit 3 → line ở giữa
 MASK_LEFT_EDGE = 0x80        # Bit 7 → line ở cạnh trái (sensor 8)
 MASK_RIGHT_EDGE = 0x01       # Bit 0 → line ở cạnh phải (sensor 1)
 
+# Sharp corner detection (góc vuông)
+MASK_SHARP_LEFT = 0xF0      # 11110000 → 4 sensor trái sáng (góc vuông trái)
+MASK_SHARP_RIGHT = 0x0F     # 00001111 → 4 sensor phải sáng (góc vuông phải)
+MASK_SHARP_LEFT_MIN = 0xE0  # 11100000 → tối thiểu 3 sensor trái (relaxed)
+MASK_SHARP_RIGHT_MIN = 0x07 # 00000111 → tối thiểu 3 sensor phải (relaxed)
+
 # ======================== CALIBRATION ========================
 CALIB_FILE = "/calibration.json"
 CALIB_DEFAULT_BLACK = 4095  # Giá trị ADC mặc định cho line đen (min)
