@@ -34,6 +34,7 @@ from config import (
     SPEED_SCALE,
     SPEED_START,
     STARTUP_TICKS,
+    TURN_TIMEOUT_MS,
 )
 
 
@@ -116,7 +117,7 @@ class LineFollowerFSM:
             if elapsed >= STARTUP_TICKS:
                 self._change_state(STATE_FOLLOW)
                 return
-            self._follow_line(SPEED_START)
+            self._drive_straight(SPEED_START)
 
         elif self.state == STATE_FOLLOW:
             # State 11: Chạy dò line chính
@@ -139,9 +140,13 @@ class LineFollowerFSM:
             if time.ticks_diff(now, self._remember_ms) > REMEMBER_TIMEOUT:
                 self.remember_line = 0
 
-            # Mất line: tiếp tục chạy thẳng cho tới khi bắt lại line.
+            # Mất line sau khi vừa thấy line ở mép: vào cua gắt theo hướng nhớ.
+            # Nếu chưa có hướng nhớ thì vẫn chạy thẳng để tìm line.
             if self._bitmask == 0x00:
-                self._drive_straight(self.speed)
+                if self.remember_line != 0:
+                    self._change_state(STATE_LOST_LINE)
+                else:
+                    self._drive_straight(self.speed)
                 return
 
             # Chạy bình thường với PD control
@@ -150,38 +155,44 @@ class LineFollowerFSM:
         elif self.state == STATE_LOST_LINE:
             # State 12: Phân loại mất line → rẽ theo hướng nhớ
             if self.remember_line == 1:
-                self._motor.speed_run(SPEED_REVERSE, self.speed)
+                self._turn_right_hard()
                 self._change_state(STATE_TURN_RIGHT_1)
             elif self.remember_line == -1:
-                self._motor.speed_run(self.speed, SPEED_REVERSE)
+                self._turn_left_hard()
                 self._change_state(STATE_TURN_LEFT_1)
             else:
                 self._change_state(STATE_FOLLOW)
 
         elif self.state == STATE_TURN_RIGHT_1:
-            # State 21: Quay phải bước 1 – chờ thấy cạnh phải
-            self._motor.speed_run(SPEED_REVERSE, self.speed)
-            if self._mask(MASK_RIGHT_EDGE):
-                self._motor.speed_run(self.speed // 2, self.speed)
-                self._change_state(STATE_TURN_RIGHT_2)
+            # State 21: Quay phải tới khi line về giữa.
+            self._turn_right_hard()
+            if self._mask(MASK_CENTER):
+                self._change_state(STATE_FOLLOW)
+            elif elapsed >= TURN_TIMEOUT_MS:
+                self._change_state(STATE_FOLLOW)
 
         elif self.state == STATE_TURN_RIGHT_2:
             # State 22: Quay phải bước 2 – chờ line về giữa
-            self._motor.speed_run(self.speed // 2, self.speed)
+            self._turn_right_soft()
             if self._mask(MASK_CENTER):
+                self._change_state(STATE_FOLLOW)
+            elif elapsed >= TURN_TIMEOUT_MS:
                 self._change_state(STATE_FOLLOW)
 
         elif self.state == STATE_TURN_LEFT_1:
-            # State 31: Quay trái bước 1 – chờ thấy cạnh trái
-            self._motor.speed_run(self.speed, SPEED_REVERSE)
-            if self._mask(MASK_LEFT_EDGE):
-                self._motor.speed_run(self.speed, self.speed // 2)
-                self._change_state(STATE_TURN_LEFT_2)
+            # State 31: Quay trái tới khi line về giữa.
+            self._turn_left_hard()
+            if self._mask(MASK_CENTER):
+                self._change_state(STATE_FOLLOW)
+            elif elapsed >= TURN_TIMEOUT_MS:
+                self._change_state(STATE_FOLLOW)
 
         elif self.state == STATE_TURN_LEFT_2:
             # State 32: Quay trái bước 2 – chờ line về giữa
-            self._motor.speed_run(self.speed, self.speed // 2)
+            self._turn_left_soft()
             if self._mask(MASK_CENTER):
+                self._change_state(STATE_FOLLOW)
+            elif elapsed >= TURN_TIMEOUT_MS:
                 self._change_state(STATE_FOLLOW)
 
         elif self.state == STATE_INTERSECTION:
@@ -200,13 +211,13 @@ class LineFollowerFSM:
         """
         if self.cross_count == 1:
             # Rẽ phải: motor trái nhanh hơn motor phải
-            self._motor.speed_run(self.speed // 6, self.speed)
+            self._turn_right_soft()
             if self._mask(MASK_CENTER):
                 self._change_state(STATE_FOLLOW)
 
         elif self.cross_count == 2:
             # Rẽ trái: motor phải nhanh hơn motor trái
-            self._motor.speed_run(self.speed, self.speed // 6)
+            self._turn_left_soft()
             if self._mask(MASK_CENTER):
                 self._change_state(STATE_FOLLOW)
 
@@ -230,16 +241,18 @@ class LineFollowerFSM:
         # 4 sensor trái sáng → tank turn trái (bánh trái lùi)
         if (self._bitmask & MASK_SHARP_LEFT) == MASK_SHARP_LEFT or \
            (self._bitmask & MASK_SHARP_LEFT_MIN) == MASK_SHARP_LEFT_MIN:
-            # Tank turn trái: bánh phải tiến, bánh trái lùi
-            self._motor.speed_run(speed, -speed // 2)
+            self.remember_line = -1
+            self._remember_ms = time.ticks_ms()
+            self._change_state(STATE_TURN_LEFT_1)
             return
         
         # PRIORITY 2: Phát hiện góc vuông PHẢI (00001111 hoặc 00000111)
         # 4 sensor phải sáng → tank turn phải (bánh phải lùi)
         if (self._bitmask & MASK_SHARP_RIGHT) == MASK_SHARP_RIGHT or \
            (self._bitmask & MASK_SHARP_RIGHT_MIN) == MASK_SHARP_RIGHT_MIN:
-            # Tank turn phải: bánh trái tiến, bánh phải lùi
-            self._motor.speed_run(-speed // 2, speed)
+            self.remember_line = 1
+            self._remember_ms = time.ticks_ms()
+            self._change_state(STATE_TURN_RIGHT_1)
             return
         
         # PRIORITY 3: Mất line → chạy thẳng tìm line
@@ -259,6 +272,22 @@ class LineFollowerFSM:
         """Chạy thẳng khi chưa thấy line, chờ sensor bắt lại line."""
         speed = max(0, min(SPEED_SCALE, speed))
         self._motor.speed_run(speed, speed)
+
+    def _turn_left_hard(self):
+        """Rẽ trái theo wiring thực tế của xe."""
+        self._motor.speed_run(SPEED_REVERSE, self.speed)
+
+    def _turn_right_hard(self):
+        """Rẽ phải theo wiring thực tế của xe."""
+        self._motor.speed_run(self.speed, SPEED_REVERSE)
+
+    def _turn_left_soft(self):
+        """Rẽ trái nhẹ theo wiring thực tế của xe."""
+        self._motor.speed_run(self.speed // 2, self.speed)
+
+    def _turn_right_soft(self):
+        """Rẽ phải nhẹ theo wiring thực tế của xe."""
+        self._motor.speed_run(self.speed, self.speed // 2)
 
     def _handle_and_speed(self, angle, speed):
         """Chia tốc độ 2 bánh dựa trên góc hiệu chỉnh.

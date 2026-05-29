@@ -77,6 +77,8 @@ class MotorDriver:
         """Dừng cả 2 motor."""
         self._pwma.duty(0)
         self._pwmb.duty(0)
+        self._current_speed_left = 0
+        self._current_speed_right = 0
 
     def deinit(self):
         """Giải phóng PWM pins."""

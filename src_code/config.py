@@ -54,13 +54,14 @@ PD_CENTER = 3500    # weighted average center: (NUM_SENSORS/2 - 0.5) * 1000
 # ======================== SPEED ========================
 SPEED_DEFAULT = 170     # Tốc độ chạy mặc định (scale 0–255)
 SPEED_START = 130       # Tốc độ khởi động (state 10)
-SPEED_REVERSE = -40     # Tốc độ quay ngược khi rẽ
+SPEED_REVERSE = -160    # Tốc độ quay ngược khi rẽ (âm càng gần 0 càng mạnh)
 SPEED_SCALE = 255       # Arduino speed range max
 
 # ======================== TIMING ========================
 LOOP_DELAY_MS = 3       # ~333 Hz main loop (giảm từ 5ms để phản ứng nhanh hơn)
 STARTUP_TICKS = 500     # ms – thời gian state 10 trước khi chuyển state 11
 REMEMBER_TIMEOUT = 1000 # ms – timeout xóa RememberLine
+TURN_TIMEOUT_MS = 650   # ms – thoát state rẽ nếu không bắt lại line
 
 # ======================== SMOOTHING & FILTERING ========================
 # Motor ramping (acceleration limiting)
