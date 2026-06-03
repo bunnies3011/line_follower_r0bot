@@ -8,6 +8,7 @@ States:
   10 – Khởi động (chạy thẳng chậm)
   11 – Chạy dò line (PD control); chưa thấy line thì chạy thẳng tìm line
   12 – Phân loại mất line
+  13 – Tìm line ngắn khi mất line mà không có hướng nhớ
   21/22 – Rẽ phải 2 bước
   31/32 – Rẽ trái 2 bước
   50 – Xử lý ngã tư
@@ -29,6 +30,8 @@ from config import (
     MASK_SHARP_RIGHT,
     MASK_SHARP_RIGHT_MIN,
     REMEMBER_TIMEOUT,
+    SEARCH_DIRECTION_THRESHOLD,
+    SEARCH_TURN_TIMEOUT_MS,
     SPEED_DEFAULT,
     SPEED_REVERSE,
     SPEED_SCALE,
@@ -42,6 +45,7 @@ from config import (
 STATE_STARTUP = 10
 STATE_FOLLOW = 11
 STATE_LOST_LINE = 12
+STATE_SEARCH_LINE = 13
 STATE_TURN_RIGHT_1 = 21
 STATE_TURN_RIGHT_2 = 22
 STATE_TURN_LEFT_1 = 31
@@ -74,6 +78,7 @@ class LineFollowerFSM:
         self.speed = SPEED_DEFAULT
         self.cross_count = 0
         self.remember_line = 0
+        self._last_search_direction = 1
         self._state_start_ms = time.ticks_ms()
         self._remember_ms = time.ticks_ms()
 
@@ -131,14 +136,16 @@ class LineFollowerFSM:
             # Ghi nhớ hướng line (để xử lý khi mất line)
             if self._mask(MASK_RIGHT_EDGE):
                 self.remember_line = 1
+                self._last_search_direction = 1
                 self._remember_ms = now
             elif self._mask(MASK_LEFT_EDGE):
                 self.remember_line = -1
+                self._last_search_direction = -1
                 self._remember_ms = now
 
             # Timeout xóa remember
             if time.ticks_diff(now, self._remember_ms) > REMEMBER_TIMEOUT:
-                self.remember_line = 0
+                self._clear_remember_line()
 
             # Mất line sau khi vừa thấy line ở mép: vào cua gắt theo hướng nhớ.
             # Nếu chưa có hướng nhớ thì vẫn chạy thẳng để tìm line.
@@ -146,7 +153,7 @@ class LineFollowerFSM:
                 if self.remember_line != 0:
                     self._change_state(STATE_LOST_LINE)
                 else:
-                    self._drive_straight(self.speed)
+                    self._change_state(STATE_SEARCH_LINE)
                 return
 
             # Chạy bình thường với PD control
@@ -154,21 +161,30 @@ class LineFollowerFSM:
 
         elif self.state == STATE_LOST_LINE:
             # State 12: Phân loại mất line → rẽ theo hướng nhớ
-            if self.remember_line == 1:
+            turn_direction = self.remember_line
+            self._clear_remember_line()
+
+            if turn_direction == 1:
                 self._turn_right_hard()
                 self._change_state(STATE_TURN_RIGHT_1)
-            elif self.remember_line == -1:
+            elif turn_direction == -1:
                 self._turn_left_hard()
                 self._change_state(STATE_TURN_LEFT_1)
             else:
                 self._change_state(STATE_FOLLOW)
 
+        elif self.state == STATE_SEARCH_LINE:
+            # State 13: Mất line khi không có remember_line → quét ngắn để bắt góc vuông.
+            self._search_line(elapsed)
+
         elif self.state == STATE_TURN_RIGHT_1:
             # State 21: Quay phải tới khi line về giữa.
             self._turn_right_hard()
             if self._mask(MASK_CENTER):
+                self._clear_remember_line()
                 self._change_state(STATE_FOLLOW)
             elif elapsed >= TURN_TIMEOUT_MS:
+                self._clear_remember_line()
                 self._change_state(STATE_FOLLOW)
 
         elif self.state == STATE_TURN_RIGHT_2:
@@ -183,8 +199,10 @@ class LineFollowerFSM:
             # State 31: Quay trái tới khi line về giữa.
             self._turn_left_hard()
             if self._mask(MASK_CENTER):
+                self._clear_remember_line()
                 self._change_state(STATE_FOLLOW)
             elif elapsed >= TURN_TIMEOUT_MS:
+                self._clear_remember_line()
                 self._change_state(STATE_FOLLOW)
 
         elif self.state == STATE_TURN_LEFT_2:
@@ -242,6 +260,7 @@ class LineFollowerFSM:
         if (self._bitmask & MASK_SHARP_LEFT) == MASK_SHARP_LEFT or \
            (self._bitmask & MASK_SHARP_LEFT_MIN) == MASK_SHARP_LEFT_MIN:
             self.remember_line = -1
+            self._last_search_direction = -1
             self._remember_ms = time.ticks_ms()
             self._change_state(STATE_TURN_LEFT_1)
             return
@@ -251,6 +270,7 @@ class LineFollowerFSM:
         if (self._bitmask & MASK_SHARP_RIGHT) == MASK_SHARP_RIGHT or \
            (self._bitmask & MASK_SHARP_RIGHT_MIN) == MASK_SHARP_RIGHT_MIN:
             self.remember_line = 1
+            self._last_search_direction = 1
             self._remember_ms = time.ticks_ms()
             self._change_state(STATE_TURN_RIGHT_1)
             return
@@ -267,6 +287,35 @@ class LineFollowerFSM:
         adjusted_speed = self._calculate_adaptive_speed(speed, abs(angle))
         
         self._handle_and_speed(angle, adjusted_speed)
+
+        self._update_search_direction(angle)
+
+    def _clear_remember_line(self):
+        """Xóa hướng nhớ để tránh quay lặp sau một lần recovery."""
+        self.remember_line = 0
+
+    def _search_line(self, elapsed):
+        """Quét line có giới hạn khi xe mất line nhưng chưa thấy mép trái/phải."""
+        if self._bitmask != 0x00:
+            self._change_state(STATE_FOLLOW)
+            return
+
+        if elapsed >= SEARCH_TURN_TIMEOUT_MS:
+            self._drive_straight(self.speed)
+            self._change_state(STATE_FOLLOW)
+            return
+
+        if self._last_search_direction == 1:
+            self._turn_right_hard()
+        else:
+            self._turn_left_hard()
+
+    def _update_search_direction(self, angle):
+        """Ghi hướng lệch gần nhất để ưu tiên quét khi mất line ở góc vuông."""
+        if angle > SEARCH_DIRECTION_THRESHOLD:
+            self._last_search_direction = 1
+        elif angle < -SEARCH_DIRECTION_THRESHOLD:
+            self._last_search_direction = -1
 
     def _drive_straight(self, speed):
         """Chạy thẳng khi chưa thấy line, chờ sensor bắt lại line."""
@@ -356,7 +405,8 @@ class LineFollowerFSM:
         """Reset FSM để bắt đầu lại từ state khởi động."""
         self.state = STATE_STARTUP
         self.cross_count = 0
-        self.remember_line = 0
+        self._clear_remember_line()
+        self._last_search_direction = 1
         self._state_start_ms = time.ticks_ms()
         self._remember_ms = self._state_start_ms
         self._bitmask = 0
