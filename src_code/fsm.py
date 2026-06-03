@@ -122,17 +122,20 @@ class LineFollowerFSM:
         elif self.state == STATE_FOLLOW:
             # State 11: Chạy dò line chính
 
-            # Phát hiện ngã tư (2 cảm biến ngoài cùng cùng sáng)
+            # Phát hiện ngã tư: chỉ khi cả 8 cảm biến cùng thấy line.
             if self._mask(MASK_INTERSECTION) == MASK_INTERSECTION:
                 self.cross_count += 1
                 self._change_state(STATE_INTERSECTION)
                 return
 
-            # Ghi nhớ hướng line (để xử lý khi mất line)
-            if self._mask(MASK_RIGHT_EDGE):
+            # Ghi nhớ hướng line khi chỉ một mép sáng; nếu cả hai mép cùng sáng
+            # thì có thể là ngã rẽ/nhiễu, không dùng để quyết định mất line.
+            right_edge = self._mask(MASK_RIGHT_EDGE)
+            left_edge = self._mask(MASK_LEFT_EDGE)
+            if right_edge and not left_edge:
                 self.remember_line = 1
                 self._remember_ms = now
-            elif self._mask(MASK_LEFT_EDGE):
+            elif left_edge and not right_edge:
                 self.remember_line = -1
                 self._remember_ms = now
 
@@ -166,7 +169,7 @@ class LineFollowerFSM:
         elif self.state == STATE_TURN_RIGHT_1:
             # State 21: Quay phải tới khi line về giữa.
             self._turn_right_hard()
-            if self._mask(MASK_CENTER):
+            if self._is_center_line():
                 self._change_state(STATE_FOLLOW)
             elif elapsed >= TURN_TIMEOUT_MS:
                 self._change_state(STATE_FOLLOW)
@@ -174,7 +177,7 @@ class LineFollowerFSM:
         elif self.state == STATE_TURN_RIGHT_2:
             # State 22: Quay phải bước 2 – chờ line về giữa
             self._turn_right_soft()
-            if self._mask(MASK_CENTER):
+            if self._is_center_line():
                 self._change_state(STATE_FOLLOW)
             elif elapsed >= TURN_TIMEOUT_MS:
                 self._change_state(STATE_FOLLOW)
@@ -182,7 +185,7 @@ class LineFollowerFSM:
         elif self.state == STATE_TURN_LEFT_1:
             # State 31: Quay trái tới khi line về giữa.
             self._turn_left_hard()
-            if self._mask(MASK_CENTER):
+            if self._is_center_line():
                 self._change_state(STATE_FOLLOW)
             elif elapsed >= TURN_TIMEOUT_MS:
                 self._change_state(STATE_FOLLOW)
@@ -190,7 +193,7 @@ class LineFollowerFSM:
         elif self.state == STATE_TURN_LEFT_2:
             # State 32: Quay trái bước 2 – chờ line về giữa
             self._turn_left_soft()
-            if self._mask(MASK_CENTER):
+            if self._is_center_line():
                 self._change_state(STATE_FOLLOW)
             elif elapsed >= TURN_TIMEOUT_MS:
                 self._change_state(STATE_FOLLOW)
@@ -212,13 +215,13 @@ class LineFollowerFSM:
         if self.cross_count == 1:
             # Rẽ phải: motor trái nhanh hơn motor phải
             self._turn_right_soft()
-            if self._mask(MASK_CENTER):
+            if self._is_center_line():
                 self._change_state(STATE_FOLLOW)
 
         elif self.cross_count == 2:
             # Rẽ trái: motor phải nhanh hơn motor trái
             self._turn_left_soft()
-            if self._mask(MASK_CENTER):
+            if self._is_center_line():
                 self._change_state(STATE_FOLLOW)
 
         else:
@@ -351,6 +354,10 @@ class LineFollowerFSM:
             int: Kết quả AND giữa sensor bitmask và mask.
         """
         return self._bitmask & mask
+
+    def _is_center_line(self):
+        """Line đã về đúng 2 sensor giữa, không phải full intersection."""
+        return self._bitmask == MASK_CENTER
 
     def reset(self):
         """Reset FSM để bắt đầu lại từ state khởi động."""

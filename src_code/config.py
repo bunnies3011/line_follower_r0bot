@@ -84,7 +84,7 @@ ADAPTIVE_SPEED_MIN_FACTOR = 0.6  # Giảm tốc độ tối đa xuống 60% khi 
 ADAPTIVE_SPEED_CURVE_THRESHOLD = 50  # Ngưỡng servo_pwm để bắt đầu giảm tốc
 
 # ======================== SENSOR MASKS ========================
-MASK_INTERSECTION = 0x81    # Bit 7 + bit 0 → ngã tư
+MASK_INTERSECTION = 0xFF    # 11111111 → ngã tư
 MASK_CENTER = 0x18          # Bit 4 + bit 3 → line ở giữa
 MASK_LEFT_EDGE = 0x80        # Bit 7 → line ở cạnh trái (sensor 8)
 MASK_RIGHT_EDGE = 0x01       # Bit 0 → line ở cạnh phải (sensor 1)
