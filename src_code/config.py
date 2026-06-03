@@ -52,7 +52,7 @@ PD_CLAMP = 4000     # constrain iRet trong [-PD_CLAMP, PD_CLAMP]
 PD_CENTER = 3500    # weighted average center: (NUM_SENSORS/2 - 0.5) * 1000
 
 # ======================== SPEED ========================
-SPEED_DEFAULT = 170     # Tốc độ chạy mặc định (scale 0–255)
+SPEED_DEFAULT = 155     # Tốc độ chạy mặc định (scale 0–255)
 SPEED_START = 130       # Tốc độ khởi động (state 10)
 SPEED_REVERSE = -145    # Tốc độ quay ngược khi rẽ
 SPEED_SCALE = 255       # Arduino speed range max
@@ -60,34 +60,34 @@ SPEED_SCALE = 255       # Arduino speed range max
 # ======================== TIMING ========================
 LOOP_DELAY_MS = 3       # ~333 Hz main loop (giảm từ 5ms để phản ứng nhanh hơn)
 STARTUP_TICKS = 500     # ms – thời gian state 10 trước khi chuyển state 11
-REMEMBER_TIMEOUT = 350  # ms – giữ hướng line ngắn để cứu cua khi vừa mất line
+REMEMBER_TIMEOUT = 500  # ms – giữ hướng line (tăng từ 350ms để đủ thời gian qua đoạn thẳng)
 TURN_TIMEOUT_MS = 500   # ms – thoát state rẽ nếu không bắt lại line
 SEARCH_TURN_TIMEOUT_MS = 380  # ms – timeout cho pha quay tìm line theo hướng gần nhất
 
 # ======================== SMOOTHING & FILTERING ========================
 # Motor ramping (acceleration limiting)
-MOTOR_RAMP_RATE = 20    # Tốc độ thay đổi tối đa mỗi vòng (0-255 scale)
+MOTOR_RAMP_RATE = 14    # Tốc độ thay đổi tối đa mỗi vòng (0-255 scale)
                         # Giá trị nhỏ = êm hơn nhưng chậm phản ứng
                         # Giá trị lớn = phản ứng nhanh nhưng giật hơn
 
 # Sensor filtering (low-pass filter)
-SENSOR_FILTER_ALPHA = 0.4  # 0.0 = không filter, 1.0 = không smoothing
+SENSOR_FILTER_ALPHA = 0.35  # 0.0 = không filter, 1.0 = không smoothing
                            # 0.3-0.5 = cân bằng tốt giữa nhiễu và phản ứng
 
 # Steering smoothing
-STEERING_SMOOTH_ALPHA = 0.5  # Alpha cho steering smoothing
+STEERING_SMOOTH_ALPHA = 0.42  # Alpha cho steering smoothing
                              # 0.5-0.7 = cân bằng tốt
 STEERING_SMOOTH_ADAPTIVE = True  # Tăng alpha khi error lớn
 
 # Adaptive speed control
 ADAPTIVE_SPEED_ENABLED = True    # Bật/tắt adaptive speed
-ADAPTIVE_SPEED_MIN_FACTOR = 0.6  # Giảm tốc độ tối đa xuống 60% khi quay gắt
-ADAPTIVE_SPEED_CURVE_THRESHOLD = 50  # Ngưỡng servo_pwm để bắt đầu giảm tốc
+ADAPTIVE_SPEED_MIN_FACTOR = 0.5  # Giảm tốc độ tối đa xuống 50% khi quay gắt
+ADAPTIVE_SPEED_CURVE_THRESHOLD = 35  # Ngưỡng servo_pwm để bắt đầu giảm tốc
 SEARCH_DIRECTION_THRESHOLD = 20      # Ngưỡng servo_pwm để ghi hướng tìm line
 
 # ======================== SENSOR MASKS ========================
 MASK_INTERSECTION = 0x81    # Bit 7 + bit 0 → ngã tư
-MASK_CENTER = 0x18          # Bit 4 + bit 3 → line ở giữa
+MASK_CENTER = 0x3C          # Bit 5,4,3,2 → 4 sensor giữa (mở rộng để dễ detect)
 MASK_LEFT_EDGE = 0x80        # Bit 7 → line ở cạnh trái (sensor 8)
 MASK_RIGHT_EDGE = 0x01       # Bit 0 → line ở cạnh phải (sensor 1)
 

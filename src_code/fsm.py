@@ -262,6 +262,7 @@ class LineFollowerFSM:
             self.remember_line = -1
             self._last_search_direction = -1
             self._remember_ms = time.ticks_ms()
+            self._turn_left_hard()  # Thực thi turn ngay lập tức
             self._change_state(STATE_TURN_LEFT_1)
             return
         
@@ -272,6 +273,7 @@ class LineFollowerFSM:
             self.remember_line = 1
             self._last_search_direction = 1
             self._remember_ms = time.ticks_ms()
+            self._turn_right_hard()  # Thực thi turn ngay lập tức
             self._change_state(STATE_TURN_RIGHT_1)
             return
         
@@ -295,16 +297,24 @@ class LineFollowerFSM:
         self.remember_line = 0
 
     def _search_line(self, elapsed):
-        """Quét line có giới hạn khi xe mất line nhưng chưa thấy mép trái/phải."""
+        """Quét line có giới hạn khi xe mất line nhưng chưa thấy mép trái/phải.
+        
+        Chiến lược: Quét ngắn theo hướng gần nhất, nếu timeout thì chạy thẳng.
+        Tránh dao động bằng cách giới hạn thời gian quét.
+        """
+        # Bắt lại line → về STATE_FOLLOW
         if self._bitmask != 0x00:
             self._change_state(STATE_FOLLOW)
             return
 
+        # Timeout → fallback: chạy thẳng chậm, hy vọng bắt lại line
         if elapsed >= SEARCH_TURN_TIMEOUT_MS:
-            self._drive_straight(self.speed)
+            # Giảm tốc khi mất line để ổn định hơn
+            self._drive_straight(self.speed // 2)
             self._change_state(STATE_FOLLOW)
             return
 
+        # Quét theo hướng lệch gần nhất
         if self._last_search_direction == 1:
             self._turn_right_hard()
         else:

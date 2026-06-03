@@ -96,7 +96,7 @@ class PDController:
         # Adaptive alpha: tăng khi error lớn
         if STEERING_SMOOTH_ADAPTIVE and error_magnitude > 1000:
             # Error lớn → cần phản ứng nhanh → alpha cao hơn
-            alpha = min(0.9, STEERING_SMOOTH_ALPHA + 0.3)
+            alpha = min(0.75, STEERING_SMOOTH_ALPHA + 0.2)
         else:
             alpha = STEERING_SMOOTH_ALPHA
         
