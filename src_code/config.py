@@ -46,7 +46,7 @@ PIN_BUTTON = 23  # D23 – nút Start
 
 # ======================== PD CONTROLLER ========================
 KP = 2
-KD = 16
+KD = 10
 PD_DIVIDER = 30     # servoPwm = iRet / PD_DIVIDER
 PD_CLAMP = 4000     # constrain iRet trong [-PD_CLAMP, PD_CLAMP]
 PD_CENTER = 3500    # weighted average center: (NUM_SENSORS/2 - 0.5) * 1000
@@ -61,12 +61,12 @@ SPEED_SCALE = 255       # Arduino speed range max
 LOOP_DELAY_MS = 3       # ~333 Hz main loop (giảm từ 5ms để phản ứng nhanh hơn)
 STARTUP_TICKS = 500     # ms – thời gian state 10 trước khi chuyển state 11
 REMEMBER_TIMEOUT = 500  # ms – giữ hướng line (tăng từ 350ms để đủ thời gian qua đoạn thẳng)
-TURN_TIMEOUT_MS = 500   # ms – thoát state rẽ nếu không bắt lại line
+TURN_TIMEOUT_MS = 400   # ms – thoát state rẽ (giảm từ 500ms, cân bằng cho góc vuông + tránh khựng)
 SEARCH_TURN_TIMEOUT_MS = 380  # ms – timeout cho pha quay tìm line theo hướng gần nhất
 
 # ======================== SMOOTHING & FILTERING ========================
 # Motor ramping (acceleration limiting)
-MOTOR_RAMP_RATE = 14    # Tốc độ thay đổi tối đa mỗi vòng (0-255 scale)
+MOTOR_RAMP_RATE = 16    # Tốc độ thay đổi tối đa mỗi vòng (0-255 scale)
                         # Giá trị nhỏ = êm hơn nhưng chậm phản ứng
                         # Giá trị lớn = phản ứng nhanh nhưng giật hơn
 
@@ -75,7 +75,7 @@ SENSOR_FILTER_ALPHA = 0.35  # 0.0 = không filter, 1.0 = không smoothing
                            # 0.3-0.5 = cân bằng tốt giữa nhiễu và phản ứng
 
 # Steering smoothing
-STEERING_SMOOTH_ALPHA = 0.42  # Alpha cho steering smoothing
+STEERING_SMOOTH_ALPHA = 0.55  # Alpha cho steering smoothing
                              # 0.5-0.7 = cân bằng tốt
 STEERING_SMOOTH_ADAPTIVE = True  # Tăng alpha khi error lớn
 
@@ -94,8 +94,11 @@ MASK_RIGHT_EDGE = 0x01       # Bit 0 → line ở cạnh phải (sensor 1)
 # Sharp corner detection (góc vuông)
 MASK_SHARP_LEFT = 0xF0      # 11110000 → 4 sensor trái sáng (góc vuông trái)
 MASK_SHARP_RIGHT = 0x0F     # 00001111 → 4 sensor phải sáng (góc vuông phải)
-MASK_SHARP_LEFT_MIN = 0xE0  # 11100000 → tối thiểu 3 sensor trái (relaxed)
-MASK_SHARP_RIGHT_MIN = 0x07 # 00000111 → tối thiểu 3 sensor phải (relaxed)
+
+# DEPRECATED: MIN masks quá nhạy, trigger false positive ở cua tròn
+# Chỉ dùng masks 4 sensor để tránh tank turn không cần thiết
+MASK_SHARP_LEFT_MIN = 0xE0  # 11100000 → KHÔNG DÙNG (gây khựng ở cua tròn)
+MASK_SHARP_RIGHT_MIN = 0x07 # 00000111 → KHÔNG DÙNG (gây khựng ở cua tròn)
 
 # ======================== CALIBRATION ========================
 CALIB_FILE = "/calibration.json"

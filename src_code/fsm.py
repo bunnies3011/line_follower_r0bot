@@ -255,10 +255,10 @@ class LineFollowerFSM:
         Args:
             speed: Tốc độ cơ bản (0–255).
         """
-        # PRIORITY 1: Phát hiện góc vuông TRÁI (11110000 hoặc 11100000)
-        # 4 sensor trái sáng → tank turn trái (bánh trái lùi)
-        if (self._bitmask & MASK_SHARP_LEFT) == MASK_SHARP_LEFT or \
-           (self._bitmask & MASK_SHARP_LEFT_MIN) == MASK_SHARP_LEFT_MIN:
+        # PRIORITY 1: Phát hiện góc vuông TRÁI (11110000)
+        # Chỉ 4 sensor trái sáng → tank turn trái (bánh trái lùi)
+        # Bỏ MIN mask (11100000) để tránh false positive ở cua tròn
+        if (self._bitmask & MASK_SHARP_LEFT) == MASK_SHARP_LEFT:
             self.remember_line = -1
             self._last_search_direction = -1
             self._remember_ms = time.ticks_ms()
@@ -266,10 +266,10 @@ class LineFollowerFSM:
             self._change_state(STATE_TURN_LEFT_1)
             return
         
-        # PRIORITY 2: Phát hiện góc vuông PHẢI (00001111 hoặc 00000111)
-        # 4 sensor phải sáng → tank turn phải (bánh phải lùi)
-        if (self._bitmask & MASK_SHARP_RIGHT) == MASK_SHARP_RIGHT or \
-           (self._bitmask & MASK_SHARP_RIGHT_MIN) == MASK_SHARP_RIGHT_MIN:
+        # PRIORITY 2: Phát hiện góc vuông PHẢI (00001111)
+        # Chỉ 4 sensor phải sáng → tank turn phải (bánh phải lùi)
+        # Bỏ MIN mask (00000111) để tránh false positive ở cua tròn
+        if (self._bitmask & MASK_SHARP_RIGHT) == MASK_SHARP_RIGHT:
             self.remember_line = 1
             self._last_search_direction = 1
             self._remember_ms = time.ticks_ms()

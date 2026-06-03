@@ -205,3 +205,105 @@ Các vấn đề chính đã được fix:
 **Tổng impact:** Cải thiện đáng kể khả năng bám đường, đặc biệt ở góc vuông và recovery sau mất line.
 
 **Next step:** Upload code lên ESP32 và test thực tế trên track.
+
+---
+
+# UPDATE: Fix Vấn Đề Cua Tròn Bị Khựng
+
+**Ngày cập nhật:** 2026-06-03 (buổi chiều)  
+**Vấn đề mới:** Xe chạy tốt ở góc vuông nhưng bị "khựng" search lâu ở cua tròn
+
+## 🔍 Nguyên Nhân
+
+**MASK_SHARP_LEFT_MIN (0xE0) và MASK_SHARP_RIGHT_MIN (0x07) quá nhạy:**
+
+```
+Cua tròn tự nhiên: 00011000 → 00111000 → 01110000 → 11100000
+                                                      ^^^^^^^^ Trigger tank turn!
+```
+
+- Pattern **11100000** (3 sensor) ở cua tròn bị hiểu nhầm là góc vuông
+- Xe chuyển sang tank turn không cần thiết
+- Khựng trong STATE_TURN_LEFT_1 chờ line về giữa (500ms timeout)
+- Mất momentum và không mượt
+
+## ✅ Giải Pháp Đã Implement
+
+### **1. Bỏ MIN Masks Khỏi Logic Sharp Turn**
+
+**File: `fsm.py` lines 258-278**
+
+```python
+# TRƯỚC: Trigger với 3 hoặc 4 sensor
+if (self._bitmask & MASK_SHARP_LEFT) == MASK_SHARP_LEFT or \
+   (self._bitmask & MASK_SHARP_LEFT_MIN) == MASK_SHARP_LEFT_MIN:  # ❌
+   
+# SAU: Chỉ trigger với 4 sensor
+if (self._bitmask & MASK_SHARP_LEFT) == MASK_SHARP_LEFT:  # ✅
+```
+
+### **2. Giảm TURN_TIMEOUT_MS**
+
+**File: `config.py` line 64**
+
+```python
+# TRƯỚC
+TURN_TIMEOUT_MS = 500  # ms
+
+# SAU
+TURN_TIMEOUT_MS = 400  # ms – Cân bằng cho góc vuông thật + thoát nhanh nếu false positive
+```
+
+**Lý do 400ms:**
+- Đủ cho motor với quán tính + ramping quay góc vuông
+- Không quá lâu nếu có false positive
+- Sensor smoothing (alpha=0.35) cần thời gian phản ứng
+
+### **3. Đánh Dấu MIN Masks Deprecated**
+
+**File: `config.py` lines 97-101**
+
+```python
+# DEPRECATED: MIN masks quá nhạy, trigger false positive ở cua tròn
+# Chỉ dùng masks 4 sensor để tránh tank turn không cần thiết
+MASK_SHARP_LEFT_MIN = 0xE0  # 11100000 → KHÔNG DÙNG (gây khựng ở cua tròn)
+MASK_SHARP_RIGHT_MIN = 0x07 # 00000111 → KHÔNG DÙNG (gây khựng ở cua tròn)
+```
+
+## 📊 Pattern Handling Sau Fix
+
+| Bitmask | Pattern | Hành Động | Status |
+|---------|---------|-----------|--------|
+| `0xFF` | 11111111 | Ngã tư → STATE_INTERSECTION | ✅ |
+| `0xF0` | 11110000 | **Góc vuông TRÁI** → Tank turn | ✅ |
+| `0x0F` | 00001111 | **Góc vuông PHẢI** → Tank turn | ✅ |
+| `0xE0` | 11100000 | **Cua tròn gắt** → PD control | ✅ FIXED |
+| `0x07` | 00000111 | **Cua tròn gắt** → PD control | ✅ FIXED |
+| `0x70` | 01110000 | Cua tròn vừa → PD control | ✅ |
+| `0x3C` | 00111100 | Line giữa → PD control | ✅ |
+| `0x00` | 00000000 | Mất line → Search/straight | ✅ |
+
+## 🎯 Kết Quả Mong Đợi
+
+**TRƯỚC:**
+- ❌ Góc vuông: Tank turn → OK
+- ❌ Cua tròn: Tank turn sai → Khựng 500ms → Mất momentum
+
+**SAU:**
+- ✅ Góc vuông: Tank turn (4 sensor) → OK
+- ✅ Cua tròn: PD control (3 sensor) → Mượt mà
+- ✅ Timeout nhanh hơn: 400ms thay vì 500ms
+
+## 📝 Summary All Changes
+
+### Code Changes:
+1. ✅ `fsm.py` line 260, 269: Bỏ `MASK_SHARP_LEFT_MIN` và `MASK_SHARP_RIGHT_MIN`
+2. ✅ `config.py` line 64: `TURN_TIMEOUT_MS = 500` → `400`
+3. ✅ `config.py` line 97-101: Đánh dấu MIN masks deprecated
+
+### Impact:
+- 🎯 **Cua tròn**: Không bị khựng, PD control mượt mà
+- 🎯 **Góc vuông**: Vẫn tank turn chính xác (chỉ 4 sensor)
+- 🎯 **Performance**: Giảm 100ms timeout, thoát nhanh hơn
+
+**Test recommendation:** Chạy track có cả góc vuông 90° và cua tròn để verify cả 2 case.
